@@ -23,7 +23,6 @@ public class CompareDirs {
         Path path2 = Paths.get(args[1]);
         try {
             CompareDirs compare = new CompareDirs(path1, path2);
-            compare.dir1.dump("");
             compare.actionTable.dump();
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
@@ -97,7 +96,7 @@ public class CompareDirs {
 
     public class ActionTable {
         String dir1, dir2;
-        private HashMap<byte[], MyFile> interFiles1 = new HashMap<byte[], MyFile>();
+        private HashMap<ByteArrayKey, MyFile> interFiles1 = new HashMap<ByteArrayKey, MyFile>();
         private ArrayList<Entry> entries = new ArrayList<>();
 
         ActionTable(ParentDir dir1, ParentDir dir2) {
@@ -121,13 +120,15 @@ public class CompareDirs {
                         dir2.files.remove(fileName);
                     }
                 } else {
-                    interFiles1.put(file1.hash, file1);
+                    interFiles1.put(new ByteArrayKey(file1.hash), file1);
                 }
             }
             for (String fileName : dir2.files.keySet()) {
-                byte[] hash = dir1.files.get(fileName).hash;
+                MyFile file2 = dir2.files.get(fileName);
+                ByteArrayKey hash = new ByteArrayKey(file2.hash);
+                System.out.println(hash);
                 if (interFiles1.containsKey(hash)) {
-                    if (dir1.files.get(fileName).size == dir2.files.get(fileName).size) {
+                    if (interFiles1.get(hash).size == file2.size) {
                         add(Action.RENAME, null, dir2.files.get(fileName).path);
                         interFiles1.remove(hash);
                     } else {
@@ -183,13 +184,15 @@ public class CompareDirs {
                 case REMOVE:
                     return "- ";  // Удаленный файл
                 case ADD:
-                    return "  ";  // Новый файл
+                    return "+ ";  // Новый файл
                 case UPDATE:
                     return "* ";  // Обновленный файл
                 case RENAME:
                     return "r ";  // Переименованный файл
-                default:
+                case NONE:
                     return "  ";  // По умолчанию, без действия
+                default:
+                    return "HUY";
             }
         }
 
@@ -226,5 +229,26 @@ public class CompareDirs {
         REMOVE,
         UPDATE,
         RENAME
+    }
+
+    public class ByteArrayKey {
+        private final byte[] bytes;
+
+        public ByteArrayKey(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof ByteArrayKey)) return false;
+            ByteArrayKey other = (ByteArrayKey) obj;
+            return Arrays.equals(this.bytes, other.bytes);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(bytes);
+        }
     }
 }
