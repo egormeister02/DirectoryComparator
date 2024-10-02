@@ -95,68 +95,31 @@ public class CompareDirs {
 
     public class ActionTable {
         String dir1, dir2;
-        private ArrayList<Entry> entries = new ArrayList<>();
+        private FileTable files;
+        private DirTable   dirs;
 
         ActionTable(ParentDir dir1, ParentDir dir2) {
             this.dir1 = dir1.path.getFileName().toString();
             this.dir2 = dir2.path.getFileName().toString();
 
-            Map<String, MyFile> dir2FilesCopy = new HashMap<>(dir2.files);
-            Map<ByteArrayKey, MyFile> interFiles1 = new HashMap<>();
-
-            for (String fileName : dir1.files.keySet()) {
-                MyFile file1 = dir1.files.get(fileName);
-                MyFile file2 = dir2FilesCopy.get(fileName);
-
-                if (dir2FilesCopy.containsKey(fileName)) {
-                    if (Arrays.equals(file1.hash, file2.hash)) {
-                        if (file1.size == file2.size) {
-                            add(Action.NONE, file1.path, file2.path);
-                            dir2FilesCopy.remove(fileName);
-                        } else {
-                            add(Action.UPDATE, file1.path, file2.path);
-                            dir2FilesCopy.remove(fileName);
-                        }
-                    } else {
-                        add(Action.UPDATE, file1.path, file2.path);
-                        dir2FilesCopy.remove(fileName);
-                    }
-                } else {
-                    interFiles1.put(new ByteArrayKey(file1.hash), file1);
-                }
-            }
-
-            for (MyFile file2 : dir2FilesCopy.values()) {
-                ByteArrayKey hash = new ByteArrayKey(file2.hash);
-                System.out.println(hash);
-
-                if (interFiles1.containsKey(hash)) {
-                    if (interFiles1.get(hash).size == file2.size) {
-                        add(Action.RENAME, interFiles1.get(hash).path, file2.path);
-                        interFiles1.remove(hash);
-                    } else {
-                        add(Action.ADD, null, file2.path);
-                    }
-                } else {
-                    add(Action.ADD, null, file2.path);
-                }
-            }
-
-            for (MyFile file : interFiles1.values()) {
-                add(Action.REMOVE, file.path, null);
-            }
+            this.files = new FileTable(dir1, dir2);
+            this.dirs  = new DirTable(dir1, dir2);
         }
-
-        public void add(Action action, Path path1, Path path2) {
-            entries.add(new Entry(action, path1, path2));
-        }
-
         public void dump() {
+            // Вычисляем максимальные ширины для всех записей (файлов и директорий)
             int maxWidth1 = dir1.length();
             int maxWidth2 = dir2.length();
-            
-            // Определяем максимальные ширины для колонок
-            for (Entry entry : entries) {
+        
+            for (Entry entry : files.entries) {
+                if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
+                    maxWidth1 = entry.path1.toString().length();
+                }
+                if (entry.path2 != null && entry.path2.toString().length() > maxWidth2) {
+                    maxWidth2 = entry.path2.toString().length();
+                }
+            }
+        
+            for (Entry entry : dirs.entries) {
                 if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
                     maxWidth1 = entry.path1.toString().length();
                 }
@@ -169,15 +132,29 @@ public class CompareDirs {
             String formatHeader = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
             String formatEntry = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
         
-            // Вывод заголовка таблицы
+            // Вывод заголовка таблицы один раз
             System.out.printf(formatHeader, dir1, dir2);
             System.out.printf(formatHeader, "-".repeat(maxWidth1), "-".repeat(maxWidth2));
         
+            // Вывод записей для файлов и директорий
+            dumpTable(files.entries, formatEntry);
+            dumpTable(dirs.entries, formatEntry);
+        }
+        
+        public void dumpTable(ArrayList<Entry> entries, String formatEntry) {
             // Вывод каждой записи
             for (Entry entry : entries) {
                 // Получаем имена файлов или пустую строку, если путь равен null
                 String file1 = entry.path1 != null ? entry.path1.getFileName().toString() : "";
                 String file2 = entry.path2 != null ? entry.path2.getFileName().toString() : "";
+        
+                // Проверяем, является ли путь директорией, и добавляем "/" для директорий
+                if (entry.path1 != null && Files.isDirectory(entry.path1)) {
+                    file1 += "/";
+                }
+                if (entry.path2 != null && Files.isDirectory(entry.path2)) {
+                    file2 += "/";
+                }
         
                 // Получаем символ действия только для соответствующего пути
                 String actionPrefix1 = entry.path1 != null ? getActionSymbol(entry.action) : "";
@@ -187,6 +164,81 @@ public class CompareDirs {
                 System.out.printf(formatEntry, actionPrefix1 + file1, actionPrefix2 + file2);
             }
         }
+        
+        
+
+        private class FileTable {
+            public ArrayList<Entry> entries = new ArrayList<Entry>();
+
+            FileTable(ParentDir dir1, ParentDir dir2) {   
+                Map<String, MyFile> dir2FilesCopy = new HashMap<>(dir2.files);
+                Map<ByteArrayKey, MyFile> interFiles1 = new HashMap<>();
+    
+                for (String fileName : dir1.files.keySet()) {
+                    MyFile file1 = dir1.files.get(fileName);
+                    MyFile file2 = dir2FilesCopy.get(fileName);
+    
+                    if (dir2FilesCopy.containsKey(fileName)) {
+                        if (Arrays.equals(file1.hash, file2.hash)) {
+                            if (file1.size == file2.size) {
+                                add(Action.NONE, file1.path, file2.path);
+                                dir2FilesCopy.remove(fileName);
+                            } else {
+                                add(Action.UPDATE, file1.path, file2.path);
+                                dir2FilesCopy.remove(fileName);
+                            }
+                        } else {
+                            add(Action.UPDATE, file1.path, file2.path);
+                            dir2FilesCopy.remove(fileName);
+                        }
+                    } else {
+                        interFiles1.put(new ByteArrayKey(file1.hash), file1);
+                    }
+                }
+    
+                for (MyFile file2 : dir2FilesCopy.values()) {
+                    ByteArrayKey hash = new ByteArrayKey(file2.hash);
+                    System.out.println(hash);
+    
+                    if (interFiles1.containsKey(hash)) {
+                        if (interFiles1.get(hash).size == file2.size) {
+                            add(Action.RENAME, interFiles1.get(hash).path, file2.path);
+                            interFiles1.remove(hash);
+                        } else {
+                            add(Action.ADD, null, file2.path);
+                        }
+                    } else {
+                        add(Action.ADD, null, file2.path);
+                    }
+                }
+    
+                for (MyFile file : interFiles1.values()) {
+                    add(Action.REMOVE, file.path, null);
+                }
+            }
+
+            public void add(Action action, Path path1, Path path2) {
+                entries.add(new Entry(action, path1, path2));
+            }
+        }
+        private class DirTable {
+            public ArrayList<Entry> entries = new ArrayList<Entry>();
+
+            DirTable(ParentDir dir1, ParentDir dir2) {
+                for (Path path : dir1.dirs) {
+                    if (dir2.dirs.contains(path)) {
+                        entries.add(new Entry(Action.NONE, path, path));
+                        dir2.dirs.remove(path);
+                    } else {
+                        entries.add(new Entry(Action.REMOVE, path, null));
+                    }
+                }
+
+                for (Path path : dir2.dirs) {
+                    entries.add(new Entry(Action.ADD, null, path));
+                }
+            }
+        } 
 
         private String getActionSymbol(Action action) {
             switch (action) {
