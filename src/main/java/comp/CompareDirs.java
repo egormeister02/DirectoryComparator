@@ -1,35 +1,17 @@
+package comp;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.security.MessageDigest;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 public class CompareDirs {
-    /**
-     * CompareDirss two directories and their contents recursively.
-     * @param args The paths to the two directories to be compared.
-     */
-    public static void main(String[] args) {
 
-        if (args.length != 2) {
-            System.err.println("Usage: java CompareDirs <path1> <path2>");
-            return;
-        }
-        
-        Path path1 = Paths.get(args[0]);
-        Path path2 = Paths.get(args[1]);
-        try {
-            CompareDirs compare = new CompareDirs(path1, path2);
-            compare.actionTable.dump();
-        } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage());
-        }
-    }
-
-    private ParentDir dir1, dir2;
+    public ParentDir dir1, dir2;
     private ActionTable actionTable;
 
     public CompareDirs(Path path1, Path path2) {
@@ -38,10 +20,14 @@ public class CompareDirs {
         actionTable = new ActionTable(dir1, dir2);
     }
 
+    public void print() {
+        actionTable.dump();
+    }
+
     public class ParentDir {
         public Path path;
-        public final HashMap<String, MyFile> files = new HashMap<String, MyFile>();
-        public final HashSet<Path> dirs = new HashSet<Path>();
+        public HashMap<String, MyFile> files = new HashMap<String, MyFile>();
+        public HashSet<Path> dirs = new HashSet<Path>();
 
         ParentDir(Path parentPath) {
             // Проверяем, является ли переданный путь директорией
@@ -65,7 +51,7 @@ public class CompareDirs {
             }
         }
 
-        void dump(String prefix) {
+        public void dump(String prefix) {
             for (Path dir : dirs) {
                 System.out.println(prefix + "├── " + dir.getFileName());
             }
@@ -81,9 +67,22 @@ public class CompareDirs {
         long   size;
         byte[] hash;
 
-        MyFile(Path path) {
-            this.path =          path;
-            this.hash = getHash(path);
+        MyFile(Path path) throws IOException{
+            this.path =             path;
+            this.hash =    getHash(path);
+            this.size = Files.size(path);
+        }
+
+        public static byte[] getHash(Path path) throws IOException {
+            if(!Files.isReadable(path)) {
+                throw new IllegalArgumentException("Error: file is not readable: " + path);
+            }
+            try {
+                return MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
+            }  catch (NoSuchAlgorithmException e) {
+                System.err.println("Error getting hash: " + e.getMessage());
+            }
+            return null;
         }
 
         void dump() {
@@ -96,48 +95,53 @@ public class CompareDirs {
 
     public class ActionTable {
         String dir1, dir2;
-        private HashMap<ByteArrayKey, MyFile> interFiles1 = new HashMap<ByteArrayKey, MyFile>();
         private ArrayList<Entry> entries = new ArrayList<>();
 
         ActionTable(ParentDir dir1, ParentDir dir2) {
             this.dir1 = dir1.path.getFileName().toString();
             this.dir2 = dir2.path.getFileName().toString();
 
+            Map<String, MyFile> dir2FilesCopy = new HashMap<>(dir2.files);
+            Map<ByteArrayKey, MyFile> interFiles1 = new HashMap<>();
+
             for (String fileName : dir1.files.keySet()) {
                 MyFile file1 = dir1.files.get(fileName);
-                MyFile file2 = dir2.files.get(fileName);
-                if (dir2.files.containsKey(fileName)) {
+                MyFile file2 = dir2FilesCopy.get(fileName);
+
+                if (dir2FilesCopy.containsKey(fileName)) {
                     if (Arrays.equals(file1.hash, file2.hash)) {
-                        if (file1.size == file2.size){
+                        if (file1.size == file2.size) {
                             add(Action.NONE, file1.path, file2.path);
-                            dir2.files.remove(fileName);
+                            dir2FilesCopy.remove(fileName);
                         } else {
                             add(Action.UPDATE, file1.path, file2.path);
-                            dir2.files.remove(fileName);
+                            dir2FilesCopy.remove(fileName);
                         }
                     } else {
                         add(Action.UPDATE, file1.path, file2.path);
-                        dir2.files.remove(fileName);
+                        dir2FilesCopy.remove(fileName);
                     }
                 } else {
                     interFiles1.put(new ByteArrayKey(file1.hash), file1);
                 }
             }
-            for (String fileName : dir2.files.keySet()) {
-                MyFile file2 = dir2.files.get(fileName);
+
+            for (MyFile file2 : dir2FilesCopy.values()) {
                 ByteArrayKey hash = new ByteArrayKey(file2.hash);
                 System.out.println(hash);
+
                 if (interFiles1.containsKey(hash)) {
                     if (interFiles1.get(hash).size == file2.size) {
-                        add(Action.RENAME, null, dir2.files.get(fileName).path);
+                        add(Action.RENAME, interFiles1.get(hash).path, file2.path);
                         interFiles1.remove(hash);
                     } else {
-                        add(Action.ADD, null, dir2.files.get(fileName).path);
+                        add(Action.ADD, null, file2.path);
                     }
                 } else {
-                    add(Action.ADD, null, dir2.files.get(fileName).path);
+                    add(Action.ADD, null, file2.path);
                 }
             }
+
             for (MyFile file : interFiles1.values()) {
                 add(Action.REMOVE, file.path, null);
             }
@@ -151,6 +155,7 @@ public class CompareDirs {
             int maxWidth1 = dir1.length();
             int maxWidth2 = dir2.length();
             
+            // Определяем максимальные ширины для колонок
             for (Entry entry : entries) {
                 if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
                     maxWidth1 = entry.path1.toString().length();
@@ -159,23 +164,27 @@ public class CompareDirs {
                     maxWidth2 = entry.path2.toString().length();
                 }
             }
-
-            // Заголовок таблицы
+        
+            // Формат заголовка и записей
             String formatHeader = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
             String formatEntry = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
-
+        
+            // Вывод заголовка таблицы
             System.out.printf(formatHeader, dir1, dir2);
             System.out.printf(formatHeader, "-".repeat(maxWidth1), "-".repeat(maxWidth2));
-
-            // Выводим каждую запись
+        
+            // Вывод каждой записи
             for (Entry entry : entries) {
+                // Получаем имена файлов или пустую строку, если путь равен null
                 String file1 = entry.path1 != null ? entry.path1.getFileName().toString() : "";
                 String file2 = entry.path2 != null ? entry.path2.getFileName().toString() : "";
-                String actionPrefix = getActionSymbol(entry.action);
-
-                System.out.printf(formatEntry, 
-                                actionPrefix + file1, 
-                                actionPrefix + file2);
+        
+                // Получаем символ действия только для соответствующего пути
+                String actionPrefix1 = entry.path1 != null ? getActionSymbol(entry.action) : "";
+                String actionPrefix2 = entry.path2 != null ? getActionSymbol(entry.action) : "";
+        
+                // Выводим запись с разными символами для каждой колонки
+                System.out.printf(formatEntry, actionPrefix1 + file1, actionPrefix2 + file2);
             }
         }
 
@@ -188,7 +197,7 @@ public class CompareDirs {
                 case UPDATE:
                     return "* ";  // Обновленный файл
                 case RENAME:
-                    return "r ";  // Переименованный файл
+                    return "~ ";  // Переименованный файл
                 case NONE:
                     return "  ";  // По умолчанию, без действия
                 default:
@@ -209,19 +218,7 @@ public class CompareDirs {
         }
     }
 
-    public static byte[] getHash(Path path) {
-        if(!Files.isReadable(path)) {
-            throw new IllegalArgumentException("Error: file is not readable: " + path);
-        }
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
-        } catch (IOException e) {
-            System.err.println("Error file working: " + e.getMessage());
-        } catch (NoSuchAlgorithmException e) {
-            System.err.println("Error getting hash: " + e.getMessage());
-        }
-        return null;
-    }
+
 
     public enum Action {
         NONE,
