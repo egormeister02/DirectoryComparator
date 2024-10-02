@@ -41,8 +41,8 @@ public class CompareDirs {
 
     public class ParentDir {
         public Path path;
-        public HashMap<String, MyFile> files = new HashMap<String, MyFile>();
-        public HashSet<Path> dirs = new HashSet<Path>();
+        public final HashMap<String, MyFile> files = new HashMap<String, MyFile>();
+        public final HashSet<Path> dirs = new HashSet<Path>();
 
         ParentDir(Path parentPath) {
             // Проверяем, является ли переданный путь директорией
@@ -98,7 +98,6 @@ public class CompareDirs {
     public class ActionTable {
         String dir1, dir2;
         private HashMap<byte[], MyFile> interFiles1 = new HashMap<byte[], MyFile>();
-        private HashMap<byte[], MyFile> interFiles2 = new HashMap<byte[], MyFile>();
         private ArrayList<Entry> entries = new ArrayList<>();
 
         ActionTable(ParentDir dir1, ParentDir dir2) {
@@ -106,20 +105,40 @@ public class CompareDirs {
             this.dir2 = dir2.path.getFileName().toString();
 
             for (String fileName : dir1.files.keySet()) {
+                MyFile file1 = dir1.files.get(fileName);
+                MyFile file2 = dir2.files.get(fileName);
                 if (dir2.files.containsKey(fileName)) {
-                    MyFile file1 = dir1.files.get(fileName);
-                    MyFile file2 = dir2.files.get(fileName);
                     if (Arrays.equals(file1.hash, file2.hash)) {
                         if (file1.size == file2.size){
                             add(Action.NONE, file1.path, file2.path);
+                            dir2.files.remove(fileName);
                         } else {
                             add(Action.UPDATE, file1.path, file2.path);
+                            dir2.files.remove(fileName);
                         }
                     } else {
                         add(Action.UPDATE, file1.path, file2.path);
+                        dir2.files.remove(fileName);
                     }
                 } else {
+                    interFiles1.put(file1.hash, file1);
                 }
+            }
+            for (String fileName : dir2.files.keySet()) {
+                byte[] hash = dir1.files.get(fileName).hash;
+                if (interFiles1.containsKey(hash)) {
+                    if (dir1.files.get(fileName).size == dir2.files.get(fileName).size) {
+                        add(Action.RENAME, null, dir2.files.get(fileName).path);
+                        interFiles1.remove(hash);
+                    } else {
+                        add(Action.ADD, null, dir2.files.get(fileName).path);
+                    }
+                } else {
+                    add(Action.ADD, null, dir2.files.get(fileName).path);
+                }
+            }
+            for (MyFile file : interFiles1.values()) {
+                add(Action.REMOVE, file.path, null);
             }
         }
 
