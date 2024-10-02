@@ -129,7 +129,7 @@ public class CompareDirs {
             // Вывод записей для директорий
             dumpDirs(formatEntry);
         }
-
+        
         private int[] calculateMaxWidths(ArrayList<Entry> fileEntries, ArrayList<Entry> dirEntries) {
             int maxWidth1 = dir1.length();
             int maxWidth2 = dir2.length();
