@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+
+import comp.CompareDirs.ParentDir;
+
 import java.security.MessageDigest;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -103,70 +106,83 @@ public class CompareDirs {
             this.dir2 = dir2.path.getFileName().toString();
 
             this.files = new FileTable(dir1, dir2);
-            this.dirs  = new DirTable(dir1, dir2);
+            this.dirs = new DirTable(dir1, dir2);
         }
+
         public void dump() {
             // Вычисляем максимальные ширины для всех записей (файлов и директорий)
-            int maxWidth1 = dir1.length();
-            int maxWidth2 = dir2.length();
-        
-            for (Entry entry : files.entries) {
-                if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
-                    maxWidth1 = entry.path1.toString().length();
-                }
-                if (entry.path2 != null && entry.path2.toString().length() > maxWidth2) {
-                    maxWidth2 = entry.path2.toString().length();
-                }
-            }
-        
-            for (Entry entry : dirs.entries) {
-                if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
-                    maxWidth1 = entry.path1.toString().length();
-                }
-                if (entry.path2 != null && entry.path2.toString().length() > maxWidth2) {
-                    maxWidth2 = entry.path2.toString().length();
-                }
-            }
-        
+            int[] maxWidths = calculateMaxWidths(files.entries, dirs.entries);
+            int maxWidth1 = maxWidths[0];
+            int maxWidth2 = maxWidths[1];
+
             // Формат заголовка и записей
             String formatHeader = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
             String formatEntry = "%-" + maxWidth1 + "s | %-" + maxWidth2 + "s%n";
-        
+
             // Вывод заголовка таблицы один раз
             System.out.printf(formatHeader, dir1, dir2);
             System.out.printf(formatHeader, "-".repeat(maxWidth1), "-".repeat(maxWidth2));
-        
-            // Вывод записей для файлов и директорий
-            dumpTable(files.entries, formatEntry);
-            dumpTable(dirs.entries, formatEntry);
+
+            // Вывод записей для файлов
+            dumpFiles(formatEntry);
+
+            // Вывод записей для директорий
+            dumpDirs(formatEntry);
         }
-        
-        public void dumpTable(ArrayList<Entry> entries, String formatEntry) {
-            // Вывод каждой записи
-            for (Entry entry : entries) {
-                // Получаем имена файлов или пустую строку, если путь равен null
+
+        private int[] calculateMaxWidths(ArrayList<Entry> fileEntries, ArrayList<Entry> dirEntries) {
+            int maxWidth1 = dir1.length();
+            int maxWidth2 = dir2.length();
+
+            // Проверяем ширины для файлов
+            for (Entry entry : fileEntries) {
+                if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
+                    maxWidth1 = entry.path1.toString().length();
+                }
+                if (entry.path2 != null && entry.path2.toString().length() > maxWidth2) {
+                    maxWidth2 = entry.path2.toString().length();
+                }
+            }
+
+            // Проверяем ширины для директорий
+            for (Entry entry : dirEntries) {
+                if (entry.path1 != null && entry.path1.toString().length() > maxWidth1) {
+                    maxWidth1 = entry.path1.toString().length();
+                }
+                if (entry.path2 != null && entry.path2.toString().length() > maxWidth2) {
+                    maxWidth2 = entry.path2.toString().length();
+                }
+            }
+
+            return new int[] {maxWidth1, maxWidth2};
+        }
+
+        public void dumpFiles(String formatEntry) {
+            // Вывод каждой записи для файлов
+            for (Entry entry : files.entries) {
                 String file1 = entry.path1 != null ? entry.path1.getFileName().toString() : "";
                 String file2 = entry.path2 != null ? entry.path2.getFileName().toString() : "";
-        
-                // Проверяем, является ли путь директорией, и добавляем "/" для директорий
-                if (entry.path1 != null && Files.isDirectory(entry.path1)) {
-                    file1 += "/";
-                }
-                if (entry.path2 != null && Files.isDirectory(entry.path2)) {
-                    file2 += "/";
-                }
-        
-                // Получаем символ действия только для соответствующего пути
+
                 String actionPrefix1 = entry.path1 != null ? getActionSymbol(entry.action) : "";
                 String actionPrefix2 = entry.path2 != null ? getActionSymbol(entry.action) : "";
-        
-                // Выводим запись с разными символами для каждой колонки
+
                 System.out.printf(formatEntry, actionPrefix1 + file1, actionPrefix2 + file2);
             }
         }
-        
-        
 
+        public void dumpDirs(String formatEntry) {
+            // Вывод каждой записи для директорий
+            for (Entry entry : dirs.entries) {
+                String dir1 = entry.path1 != null ? entry.path1.getFileName().toString() + "/" : "";
+                String dir2 = entry.path2 != null ? entry.path2.getFileName().toString() + "/" : "";
+
+                String actionPrefix1 = entry.path1 != null ? getActionSymbol(entry.action) : "";
+                String actionPrefix2 = entry.path2 != null ? getActionSymbol(entry.action) : "";
+
+                System.out.printf(formatEntry, actionPrefix1 + dir1, actionPrefix2 + dir2);
+            }
+        }
+    
         private class FileTable {
             public ArrayList<Entry> entries = new ArrayList<Entry>();
 
