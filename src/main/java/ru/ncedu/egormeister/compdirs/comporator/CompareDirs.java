@@ -1,20 +1,17 @@
-package comp;
+package ru.ncedu.egormeister.compdirs.comporator;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-
-import comp.CompareDirs.ParentDir;
-
 import java.security.MessageDigest;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 public class CompareDirs {
 
-    public ParentDir dir1, dir2;
+    private ParentDir dir1, dir2;
     private ActionTable actionTable;
 
     public CompareDirs(Path path1, Path path2) {
@@ -27,7 +24,7 @@ public class CompareDirs {
         actionTable.dump();
     }
 
-    public class ParentDir {
+    private class ParentDir {
         public Path path;
         public HashMap<String, MyFile> files = new HashMap<String, MyFile>();
         public HashSet<Path> dirs = new HashSet<Path>();
@@ -65,7 +62,7 @@ public class CompareDirs {
         }
     }
 
-    public static class MyFile {
+    private static class MyFile {
         Path   path;
         long   size;
         byte[] hash;
@@ -96,7 +93,7 @@ public class CompareDirs {
     }
 
 
-    public class ActionTable {
+    private class ActionTable {
         String dir1, dir2;
         private FileTable files;
         private DirTable   dirs;
@@ -157,7 +154,7 @@ public class CompareDirs {
             return new int[] {maxWidth1, maxWidth2};
         }
 
-        public void dumpFiles(String formatEntry) {
+        private void dumpFiles(String formatEntry) {
             // Вывод каждой записи для файлов
             for (Entry entry : files.entries) {
                 String file1 = entry.path1 != null ? entry.path1.getFileName().toString() : "";
@@ -170,7 +167,7 @@ public class CompareDirs {
             }
         }
 
-        public void dumpDirs(String formatEntry) {
+        private void dumpDirs(String formatEntry) {
             // Вывод каждой записи для директорий
             for (Entry entry : dirs.entries) {
                 String dir1 = entry.path1 != null ? entry.path1.getFileName().toString() + "/" : "";
@@ -273,7 +270,7 @@ public class CompareDirs {
             }
         }
 
-        public class Entry {
+        private class Entry {
             Action action;
             Path path1;
             Path path2;

@@ -1,0 +1,73 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+           http://maven.apache.org/POM/4.0.0
+           http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Основные идентификаторы проекта -->
+    <groupId>ru.ncedu.egormeister.compdirs</groupId>
+    <artifactId>compdirs</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <!-- Информация о проекте -->
+    <name>Compare Directories</name>
+    <description>Java application to compare directories.</description>
+
+    <!-- Свойства проекта -->
+    <properties>
+        <!-- Версия Java -->
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- Кодировка -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- Зависимости проекта -->
+    <dependencies>
+        <!-- Здесь можно добавить зависимости, если они понадобятся -->
+    </dependencies>
+
+    <!-- Конфигурация сборки -->
+    <build>
+        <plugins>
+            <!-- Плагин для компиляции Java кода -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+
+            <!-- Плагин для создания исполняемого JAR файла -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>ru.ncedu.egormeister.compdirs.Compare</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Плагин для выполнения Java приложения через Maven -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <mainClass>ru.ncedu.egormeister.compdirs.Compare</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
