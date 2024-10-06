@@ -11,11 +11,9 @@ public class Compare {
         Path path2;
 
         if (args.length == 0) {
-            // Если аргументы командной строки отсутствуют, открываем JFileChooser
             JFileChooser chooser = new JFileChooser();
             chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 
-            // Выбираем первую директорию
             int returnVal1 = chooser.showOpenDialog(null);
             if (returnVal1 == JFileChooser.APPROVE_OPTION) {
                 File file1 = chooser.getSelectedFile();
@@ -25,7 +23,6 @@ public class Compare {
                 return;
             }
 
-            // Выбираем вторую директорию
             int returnVal2 = chooser.showOpenDialog(null);
             if (returnVal2 == JFileChooser.APPROVE_OPTION) {
                 File file2 = chooser.getSelectedFile();
@@ -35,10 +32,9 @@ public class Compare {
                 return;
             }
         } else if (args.length == 1){
-            System.out.println("Usage: java -jar compare.jar <dir1> <dir2>");
+            System.out.println("Usage: java -jar compare.jar <path to dir1> <path to dir2>");
             return;
         } else {
-            // Если аргументы командной строки указаны
             path1 = Paths.get(args[0]);
             path2 = Paths.get(args[1]);
         }

@@ -35,20 +35,24 @@ public class CompareDirs {
                 throw new IllegalArgumentException("Error: path is not a directory: " + parentPath);
             }
 
-            try {
+            
                 this.path = parentPath;
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(parentPath)) {
                     for (Path path : stream) {
                         if (Files.isDirectory(path)) {
                             dirs.add(path);
                         } else if (Files.isRegularFile(path)) {
-                            files.put(path.getFileName().toString(), new MyFile(path));
+                            try {
+                                files.put(path.getFileName().toString(), new MyFile(path));
+                            } catch (IOException e) {
+                                System.err.println("Error: " + e.getMessage());
+                            }
                         }
                     }
+                } catch (IOException e) {
+                    System.err.println("Error directory stream: " + e.getMessage());
                 }
-            } catch (IOException e) {
-                System.err.println("Error directory working: " + e.getMessage());
-            }
+            
         }
 
         public void dump(String prefix) {
@@ -74,15 +78,22 @@ public class CompareDirs {
         }
 
         public static byte[] getHash(Path path) throws IOException {
-            if(!Files.isReadable(path)) {
-                throw new IllegalArgumentException("Error: file is not readable: " + path);
+            if (!Files.exists(path)) {
+                throw new IllegalArgumentException("Error: file does not exist: " + path);
             }
+        
             try {
-                return MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
-            }  catch (NoSuchAlgorithmException e) {
-                System.err.println("Error getting hash: " + e.getMessage());
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                return digest.digest(Files.readAllBytes(path));
+            } catch (AccessDeniedException e) {
+                throw new IOException("Access denied: Unable to read file due to permission issues: " + path, e);
+            } catch (NoSuchFileException e) {
+                throw new IOException("File not found: The specified file was not found: " + path, e);
+            } catch (IOException e) {
+                throw new IOException("I/O error: Problem reading the file: " + path + " (it could be corrupted or inaccessible)", e);
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException("SHA-256 algorithm not found", e);
             }
-            return null;
         }
 
         void dump() {
